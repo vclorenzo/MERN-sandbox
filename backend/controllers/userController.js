@@ -6,118 +6,135 @@ const generateToken = require('../utils/generateToken');
 // @route   POST /api/users/auth
 // @access  Public
 const authUser = asyncHandler(async (req, res) => {
-  const { email, password } = req.body;
+	const { email, password } = req.body;
 
-  const user = await User.findOne({ email });
+	const user = await User.findOne({ email });
 
-  if (user && (await user.comparePassword(password))) {
-    generateToken(res, user._id);
+	if (user && (await user.comparePassword(password))) {
+		generateToken(res, user._id);
 
-    res.json({
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      // password: user.password,
-    });
-  } else {
-    res.status(401);
-    throw new Error('Invalid email or password');
-  }
+		res.json({
+			_id: user._id,
+			name: user.name,
+			email: user.email,
+			// password: user.password,
+		});
+	} else {
+		res.status(401);
+		throw new Error('Invalid email or password');
+	}
 });
 
 // @desc    Register a new user
 // @route   POST /api/users
 // @access  Public
 const registerUser = asyncHandler(async (req, res) => {
-  const { name, email, password } = req.body;
+	const { name, email, password, address, birthDate } = req.body;
 
-  const userExists = await User.findOne({ email });
+	const userExists = await User.findOne({ email });
 
-  if (userExists) {
-    res.status(400);
-    throw new Error('User already exists');
-  }
+	if (userExists) {
+		res.status(400);
+		throw new Error('User already exists');
+	}
 
-  const user = await User.create({
-    name,
-    email,
-    password,
-  });
+	const user = await User.create({
+		name,
+		email,
+		password,
+		address: address || null,
+		birthDate: birthDate || null,
+	});
 
-  if (user) {
-    generateToken(res, user._id);
+	if (user) {
+		generateToken(res, user._id);
 
-    res.status(201).json({
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-    });
-  } else {
-    res.status(400);
-    throw new Error('Invalid user data');
-  }
+		res.status(201).json({
+			_id: user._id,
+			name: user.name,
+			email: user.email,
+			address: user.address,
+			birthDate: user.birthDate,
+		});
+	} else {
+		res.status(400);
+		throw new Error('Invalid user data');
+	}
 });
 
 // @desc    Logout user / clear cookie
 // @route   POST /api/users/logout
 // @access  Public
 const logoutUser = (req, res) => {
-  res.cookie('jwt', '', {
-    httpOnly: true,
-    expires: new Date(0),
-  });
-  res.status(200).json({ message: 'Logged out successfully' });
+	res.cookie('jwt', '', {
+		httpOnly: true,
+		expires: new Date(0),
+	});
+	res.status(200).json({ message: 'Logged out successfully' });
 };
 
 // @desc    Get user profile
 // @route   GET /api/users/profile
 // @access  Private
 const getUserProfile = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user._id);
+	const user = await User.findById(req.user._id);
 
-  if (user) {
-    res.json({
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-    });
-  } else {
-    res.status(404);
-    throw new Error('User not found');
-  }
+	if (user) {
+		res.json({
+			_id: user._id,
+			name: user.name,
+			email: user.email,
+			address: user.address,
+			birthDate: user.birthDate,
+		});
+	} else {
+		res.status(404);
+		throw new Error('User not found');
+	}
 });
 
 // @desc    Update user profile
 // @route   PUT /api/users/profile
 // @access  Private
 const updateUserProfile = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user._id);
+	const user = await User.findById(req.user._id);
 
-  if (user) {
-    user.name = req.body.name || user.name;
-    user.email = req.body.email || user.email;
+	if (user) {
+		const { name, email, address, birthDate, newPassword, currentPassword } =
+			req.body;
 
-    if (req.body.password) {
-      user.password = req.body.password;
-    }
+		if (currentPassword && !(await user.comparePassword(currentPassword))) {
+			res.status(401);
+			throw new Error('Current Password Incorrect');
+		}
+		user.name = name || user.name;
+		user.email = email || user.email;
+		user.address = address || user.address || null;
+		user.birthDate = birthDate || user.birthDate || null;
 
-    const updatedUser = await user.save();
+		if (newPassword) {
+			user.password = newPassword;
+		}
 
-    res.json({
-      _id: updatedUser._id,
-      name: updatedUser.name,
-      email: updatedUser.email,
-    });
-  } else {
-    res.status(404);
-    throw new Error('User not found');
-  }
+		const updatedUser = await user.save();
+
+		res.json({
+			_id: updatedUser._id,
+			name: updatedUser.name,
+			email: updatedUser.email,
+			address: updatedUser.address,
+			birthDate: updatedUser.birthDate,
+		});
+	} else {
+		res.status(404);
+		throw new Error('User not found');
+	}
 });
 
 module.exports = {
-  authUser,
-  registerUser,
-  logoutUser,
-  getUserProfile,
-  updateUserProfile,
+	authUser,
+	registerUser,
+	logoutUser,
+	getUserProfile,
+	updateUserProfile,
 };
